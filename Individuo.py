@@ -7,7 +7,13 @@ class Individuo:
     """
     Representa um indivíduo (solução candidata) para o problema do Caixeiro
     Viajante (TSP) resolvido via Algoritmos Genéticos.
-    
+    Parâmetros:
+    -----------
+    partida : Cidade
+        Cidade de partida (pode ser usada para garantir que a rota comece por ela).
+    cidades : list[Cidade] 
+        Lista completa de cidades a serem visitadas (incluindo a cidade de partida).   
+
     Atributos
     ---------
 
@@ -16,18 +22,23 @@ class Individuo:
        
     """
 
-    def __init__(self, cidades: list[Cidade]) -> None:
-        self.cromossomo: list[Cidade] = self.gerar_cromossomo_aleatorio(cidades)
-
+    def __init__(self, partida: Cidade, cidades: list[Cidade]) -> None:
+        self.cromossomo: list[Cidade] = self.gerar_cromossomo_aleatorio(partida, cidades)
+        self.partida = partida
     # ------------------------------------------------------------------
     # Inicialização
     # ------------------------------------------------------------------
 
-    def gerar_cromossomo_aleatorio(self, cidades: list[Cidade]) -> list[Cidade]:
-        """Cria uma permutação aleatória da lista de cidades."""
-        rota = list(cidades)
-        random.shuffle(rota)
-        return rota
+    def gerar_cromossomo_aleatorio(self, partida: Cidade, cidades: list[Cidade]) -> list[Cidade]:
+        """Cria uma permutação aleatória das cidades, com a cidade de partida sempre em primeiro lugar."""
+        # Remove a cidade de partida da lista de cidades
+        outras_cidades = [cidade for cidade in cidades if cidade.id != partida.id]
+    
+        # Embaralha as outras cidades aleatoriamente
+        random.shuffle(outras_cidades)
+    
+        # Retorna a rota com a cidade de partida no início
+        return [partida] + outras_cidades
 
 
     def calcular_aptidao(self) -> float:
@@ -71,7 +82,7 @@ class Individuo:
 
     def copiar(self) -> "Individuo":
         """Retorna uma cópia independente deste indivíduo."""
-        copia = Individuo(self.cidades)
+        copia = Individuo(self.partida, self.cidades)
         
         return copia
 

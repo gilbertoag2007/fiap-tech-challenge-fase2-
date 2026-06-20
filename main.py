@@ -1,6 +1,27 @@
 from Individuo import Individuo
 from cidade import Cidade
-from utils import gerar_matriz_distancias
+#from utils import gerar_matriz_distancias, gerar_populacao_inicial
+from utils import *
+
+# =============================================================================
+# Geração da lista de cidades
+# =============================================================================
+def popular_cidades() -> list[Cidade]:
+    """Cria e retorna uma lista de cidades pré-definidas."""
+    cidades_cadastradas = [
+        Cidade(0, "São Paulo",           "SP", -23.5505, -46.6333),
+        Cidade(1, "Campinas",            "SP", -22.9056, -47.0608),
+        Cidade(2, "Ribeirão Preto",      "SP", -21.1775, -47.8103),
+        Cidade(3, "Santos",              "SP", -23.9618, -46.3322),
+        Cidade(4, "Sorocaba",            "SP", -23.5015, -47.4526),
+        Cidade(5, "São José dos Campos", "SP", -23.1794, -45.8869)
+    ]
+    
+    print("=== Cidades cadastradas ===")
+    for c in cidades_cadastradas:
+        print(f"  {c}")
+
+    return cidades_cadastradas
 
 
 # =============================================================================
@@ -10,19 +31,11 @@ from utils import gerar_matriz_distancias
 if __name__ == "__main__":
 
     # Algumas cidades do estado de São Paulo
-    cidades = [
-        Cidade(0, "São Paulo",           "SP", -23.5505, -46.6333),
-        Cidade(1, "Campinas",            "SP", -22.9056, -47.0608),
-        Cidade(2, "Ribeirão Preto",      "SP", -21.1775, -47.8103),
-        Cidade(3, "Santos",              "SP", -23.9618, -46.3322),
-        Cidade(4, "Sorocaba",            "SP", -23.5015, -47.4526),
-        Cidade(5, "São José dos Campos", "SP", -23.1794, -45.8869),
-    ]
+    cidades = popular_cidades()
 
-    print("=== Cidades cadastradas ===")
-    for c in cidades:
-        print(f"  {c}")
-
+    # Cidade de partida
+    partida = cidades[0] # São Paulo
+        
     print("\n=== Distâncias a partir de São Paulo ===")
     sp = cidades[0]
     for outra in cidades[1:]:
@@ -30,50 +43,47 @@ if __name__ == "__main__":
 
     print("\n=== Matriz de distâncias (KM) ===")
     matriz = gerar_matriz_distancias(cidades)
-    header = f"{'':22}" + "".join(f"{c.nome[:10]:>12}" for c in cidades)
-    print(header)
-    for i, c in enumerate(cidades):
-        linha = f"  {c.nome:<20}" + "".join(f"{matriz[i][j]:>12.1f}" for j in range(len(cidades)))
-        print(linha)
+    
 
     print("\n=== CRIANDO INDIVIDUOS ===")
 
-   # --- Cria dois indivíduos com rota aleatória ---
-    pais = [Individuo(cidades) for _ in range(10)]
+    tamanho_populacao=10
 
-    melhor = None
+    # --- Cria 10 indivíduos com rota aleatória ---
+    populacao_inicial = gerar_populacao_aleatoria(tamanho_populacao, partida, cidades)
+    
+   # melhores_individuos = seleciona_melhores_individuos(populacao_inicial, 5)
+    
+    numero_epocas=5
+    quantidade_elite=5
+    tamanho_populacao=10
 
-    for individuo in pais:
-        individuo.calcular_aptidao()
-        print(f"Indivíduo: {individuo} | Válido: {individuo.is_valido()} | Distância: {individuo.aptidao:.1f} km")
-        if melhor is None or individuo.aptidao < melhor.aptidao:
-            melhor = individuo
+    melhor_individuo_global = None
 
-    print(f"Melhor indivíduo (menor distância): {melhor.aptidao:.1f} km | Rota: {' → '.join(melhor.rota_nomes())}")
+    for epoca in range(numero_epocas):
+        # Selecionar melhores (elitismo)
+        melhores = seleciona_melhores_individuos(populacao_inicial, quantidade_elite)
+    
+        # Criar nova população
+        populacao_nova = gerar_populacao_aleatoria(tamanho_populacao, partida, cidades, melhores)
+    
+        # Calcular aptidão
+        #aptidoes = []
+        
+        #for ind in populacao_nova:
+        #    ind.calcular_aptidao()
+        #    aptidoes.append(ind.calcular_aptidao())
+            
+            # Exibir progresso
+        #    print(f"Época {epoca+1}: {min(aptidoes):.2f} km")
 
-   # print("=== Pais ===")
-   # print(f"Pai 1: {pai1}")
-   # print(f"Pai 2: {pai2}")
+        # Atualizar melhor indivíduo global
+        melhor_atual = min(populacao_nova, key=lambda ind: ind.calcular_aptidao())
+        if melhor_individuo_global is None or melhor_atual.calcular_aptidao() < melhor_individuo_global.calcular_aptidao():
+            melhor_individuo_global = melhor_atual
 
-    # --- Cruzamento OX ---
-    #filho1, filho2 = pai1.cruzamento_ox(pai2)
-    #filho1.calcular_aptidao()
-    #filho2.calcular_aptidao()
 
-    #print("\n=== Filhos após Cruzamento OX ===")
-    #print(f"Filho 1: {filho1} | válido: {filho1.is_valido()}")
-    #print(f"Filho 2: {filho2} | válido: {filho2.is_valido()}")
-
-    # --- Mutação por inversão (forçada para demo) ---
-    #filho1.mutacao_inversao(taxa_mutacao=1.0)
-    #filho1.calcular_aptidao()
-    #print(f"\nFilho 1 após mutação por inversão: {filho1}")
-
-    # --- Ranking da população ---
-    #populacao = [pai1, pai2, filho1, filho2]
-    #populacao.sort()
-
-  #  print("\n=== Ranking (menor distância = melhor) ===")
-  #  for rank, ind in enumerate(populacao, 1):
-  #      rota = " → ".join(ind.rota_nomes())
-  #      print(f"  {rank}º {ind.aptidao:.1f} km | {rota}")
+    print("\n=== Melhor indivíduo encontrado ===")
+    print(f"Rota: {' → '.join(c.nome for c in melhor_individuo_global.cromossomo)}")
+    print(f"Distância total: {melhor_individuo_global.calcular_aptidao():.2f} km")  
+    
