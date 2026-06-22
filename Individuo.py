@@ -24,25 +24,48 @@ class Individuo:
         self.cromossomo: list[Cidade] = cromossomo
 
 
+    # Penalidade adicionada à aptidão por cada par (insumo antes de vacina) na rota.
+    # Valor alto o suficiente para que qualquer rota com violação seja pior
+    # do que qualquer rota válida, independentemente da distância.
+    _PENALIDADE_POR_VIOLACAO: float = 10_000.0
+
     def calcular_aptidao(self) -> float:
         """
-        Calcula e armazena a distância total da rota usando Haversine,
-        chamando diretamente cidade.distancia_para(outra).
-        O retorno é a distancia total de todas as cidades da solução (Individuo).
+        Calcula a aptidão do indivíduo como:
+            aptidao = distancia_total + penalidade_prioridade
 
+        A penalidade é aplicada quando cidades de menor prioridade ("insumo")
+        aparecem antes de cidades de maior prioridade ("vacina") na rota.
+        Cada par fora de ordem adiciona _PENALIDADE_POR_VIOLACAO à aptidão.
+
+        Atributos definidos após a chamada
+        ------------------------------------
+        distancia : float — distância real percorrida em KM (sem penalidade)
+        aptidao   : float — valor usado pelo AG para comparar indivíduos
+
+        Retorna
         -------
-        float — distância total em KM.
+        float — aptidão total (menor = melhor).
         """
         distancia_total = 0.0
         n = len(self.cromossomo)
-
         for i in range(n - 1):
-            origem  = self.cromossomo[i]
-            destino = self.cromossomo[i + 1]
-            distancia_total += origem.distancia_para(destino)
+            distancia_total += self.cromossomo[i].distancia_para(self.cromossomo[i + 1])
 
-        self.aptidao = distancia_total
+        self.distancia = distancia_total
+        self.aptidao   = distancia_total + self._penalidade_prioridade()
         return self.aptidao
+
+    def _penalidade_prioridade(self) -> float:
+        """Conta pares (insumo, vacina) fora de ordem e retorna a penalidade total."""
+        inner = self.cromossomo[1:-1]
+        violacoes = sum(
+            1
+            for i, a in enumerate(inner)
+            for b in inner[i + 1:]
+            if a.tipo_carga == "insumo" and b.tipo_carga == "vacina"
+        )
+        return violacoes * self._PENALIDADE_POR_VIOLACAO
 
 
     # ------------------------------------------------------------------

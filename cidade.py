@@ -8,30 +8,45 @@ class Cidade:
 
     Atributos
     ---------
-    id         : int   — identificador único da cidade
-    nome       : str   — nome da cidade
-    uf         : str   — sigla do estado (ex.: "SP", "RJ")
-    latitude   : float — latitude geográfica em graus decimais
-    longitude  : float — longitude geográfica em graus decimais
+    id         : int        — identificador único da cidade
+    nome       : str        — nome da cidade
+    uf         : str        — sigla do estado (ex.: "SP", "RJ")
+    latitude   : float      — latitude geográfica em graus decimais
+    longitude  : float      — longitude geográfica em graus decimais
+    tipo_carga : str | None — tipo de carga a entregar: "vacina", "insumo" ou None
     """
 
     RAIO_TERRA_KM: float = 6371.0  # raio médio da Terra em KM
 
-    def __init__(self, id: int, nome: str, uf: str, latitude: float, longitude: float) -> None:
+    TIPOS_VALIDOS = {"vacina", "insumo", None}
+
+    def __init__(
+        self,
+        id: int,
+        nome: str,
+        uf: str,
+        latitude: float,
+        longitude: float,
+        tipo_carga: str | None = None,
+    ) -> None:
         """
         Parâmetros
         ----------
-        id        : int   — identificador único (ex.: índice na lista de cidades)
-        nome      : str   — nome da cidade (ex.: "São Paulo")
-        uf        : str   — sigla do estado com 2 letras maiúsculas (ex.: "SP")
-        latitude  : float — latitude em graus decimais (negativo = Sul)
-        longitude : float — longitude em graus decimais (negativo = Oeste)
+        id         : int        — identificador único (ex.: índice na lista de cidades)
+        nome       : str        — nome da cidade (ex.: "São Paulo")
+        uf         : str        — sigla do estado com 2 letras maiúsculas (ex.: "SP")
+        latitude   : float      — latitude em graus decimais (negativo = Sul)
+        longitude  : float      — longitude em graus decimais (negativo = Oeste)
+        tipo_carga : str | None — "vacina", "insumo" ou None para cidade sem entrega
         """
-        self.id: int          = id
-        self.nome: str        = nome
-        self.uf: str          = uf.upper()
-        self.latitude: float  = latitude
-        self.longitude: float = longitude
+        if tipo_carga not in self.TIPOS_VALIDOS:
+            raise ValueError(f"tipo_carga inválido: '{tipo_carga}'. Use 'vacina', 'insumo' ou None.")
+        self.id: int               = id
+        self.nome: str             = nome
+        self.uf: str               = uf.upper()
+        self.latitude: float       = latitude
+        self.longitude: float      = longitude
+        self.tipo_carga: str | None = tipo_carga
 
     # ------------------------------------------------------------------
     # Cálculo de distância
@@ -82,7 +97,8 @@ class Cidade:
         )
 
     def __str__(self) -> str:
-        return f"[{self.id}] {self.nome}/{self.uf} ({self.latitude:.4f}, {self.longitude:.4f})"
+        carga = f" [{self.tipo_carga}]" if self.tipo_carga else ""
+        return f"[{self.id}] {self.nome}/{self.uf} ({self.latitude:.4f}, {self.longitude:.4f}){carga}"
 
 
 

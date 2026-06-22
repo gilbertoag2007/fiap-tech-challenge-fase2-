@@ -1,4 +1,5 @@
 from cidade import Cidade
+from Individuo import Individuo
 from algoritmos_geneticos import *
 
 # =============================================================================
@@ -7,16 +8,16 @@ from algoritmos_geneticos import *
 def popular_cidades() -> list[Cidade]:
     """Cria e retorna uma lista de cidades pré-definidas."""
     cidades_cadastradas = [
-        Cidade(0,  "São Paulo",           "SP", -23.5505, -46.6333),
-        Cidade(1,  "Campinas",            "SP", -22.9056, -47.0608),
-        Cidade(2,  "Ribeirão Preto",      "SP", -21.1775, -47.8103),
-        Cidade(3,  "Santos",              "SP", -23.9618, -46.3322),
-        Cidade(4,  "Sorocaba",            "SP", -23.5015, -47.4526),
-        Cidade(5,  "São José dos Campos", "SP", -23.1794, -45.8869),
-        Cidade(6,  "Bauru",               "SP", -22.3246, -49.0961),
-        Cidade(7,  "Presidente Prudente", "SP", -22.1256, -51.3889),
-        Cidade(8,  "São Carlos",          "SP", -22.0154, -47.8910),
-        Cidade(9,  "Piracicaba",          "SP", -22.7253, -47.6492),
+        Cidade(0,  "São Paulo",           "SP", -23.5505, -46.6333),                       # partida
+        Cidade(1,  "Campinas",            "SP", -22.9056, -47.0608, tipo_carga="vacina"),
+        Cidade(2,  "Ribeirão Preto",      "SP", -21.1775, -47.8103, tipo_carga="vacina"),
+        Cidade(3,  "Santos",              "SP", -23.9618, -46.3322, tipo_carga="vacina"),
+        Cidade(4,  "Sorocaba",            "SP", -23.5015, -47.4526, tipo_carga="insumo"),
+        Cidade(5,  "São José dos Campos", "SP", -23.1794, -45.8869, tipo_carga="vacina"),
+        Cidade(6,  "Bauru",               "SP", -22.3246, -49.0961, tipo_carga="insumo"),
+        Cidade(7,  "Presidente Prudente", "SP", -22.1256, -51.3889, tipo_carga="insumo"),
+        Cidade(8,  "São Carlos",          "SP", -22.0154, -47.8910, tipo_carga="insumo"),
+        Cidade(9,  "Piracicaba",          "SP", -22.7253, -47.6492, tipo_carga="insumo"),
     ]
     
     print("=== Cidades cadastradas ===")
@@ -211,7 +212,7 @@ def teste_integracao_loop():
     print("\n🏁 Simulando 5 épocas com crossover e mutação:\n")
     
     # Gerar população inicial
-    tamanho_populacao = 10
+    tamanho_populacao = 100
     numero_epocas = 5
     
     populacao = gerar_populacao_aleatoria(tamanho_populacao, partida, cidades)
@@ -265,8 +266,9 @@ def teste_integracao_loop():
         
         populacao = nova_populacao[:tamanho_populacao]
     
+    melhor_global.calcular_aptidao()
     print("\n" + "="*40)
-    print(f"✓ Melhor solução encontrada: {melhor_global.aptidao:.2f} km")
+    print(f"✓ Melhor solução encontrada: {melhor_global.distancia:.2f} km")
     print(f"Rota: {' → '.join(melhor_global.rota_nomes())}")
  
  # =============================================================================
@@ -292,7 +294,7 @@ if __name__ == "__main__":
 
     print("\n=== CRIANDO INDIVIDUOS ===")
 
-    tamanho_populacao=10
+    tamanho_populacao=100
     # --- Cria 10 indivíduos com rota aleatória ---
     populacao_inicial = gerar_populacao_aleatoria(tamanho_populacao, partida, cidades)
     
@@ -327,9 +329,13 @@ if __name__ == "__main__":
             melhor_individuo_global = melhor_atual
 
 
+    melhor_individuo_global.calcular_aptidao()
     print("\n=== Melhor indivíduo encontrado ===")
-    print(f"Rota: {' → '.join(c.nome for c in melhor_individuo_global.cromossomo)}")
-    print(f"Distância total: {melhor_individuo_global.calcular_aptidao():.2f} km")  
+    for c in melhor_individuo_global.cromossomo:
+        carga = f" [{c.tipo_carga}]" if c.tipo_carga else ""
+        print(f"  {c.nome}{carga}")
+    print(f"Distância real percorrida : {melhor_individuo_global.distancia:.2f} km")
+    print(f"Violacoes de prioridade   : {int((melhor_individuo_global.aptidao - melhor_individuo_global.distancia) / Individuo._PENALIDADE_POR_VIOLACAO)}")
 
 
 
