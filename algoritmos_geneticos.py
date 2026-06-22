@@ -39,6 +39,29 @@ def gerar_matriz_distancias(cidades: list[Cidade]) -> list[list[float]]:
             
     return matriz
 
+def gerar_individuo_aleatorio(partida: Cidade, cidades: list[Cidade]) -> Individuo:
+    """
+    Cria um indivíduo com cromossomo aleatorio.
+
+    A cidade de partida é fixada na primeira e na última posição (rota circular).
+    As demais cidades são embaralhadas aleatoriamente entre essas posições.
+
+    Parâmetros
+    ----------
+    partida : Cidade
+        Cidade de partida e chegada da rota.
+    cidades : list[Cidade]
+        Lista completa de cidades a serem visitadas (incluindo a partida).
+
+    Retorna
+    -------
+    Individuo — novo indivíduo com cromossomo [partida, ..., partida].
+    """
+    outras = [c for c in cidades if c.id != partida.id]
+    random.shuffle(outras)
+    return Individuo(partida, [partida] + outras + [partida])
+
+
 def seleciona_melhores_individuos(populacao: list[Individuo], quantidade: int) -> list[Individuo]:
     """Seleciona os n indivíduos com as menores distâncias (melhores aptidões) da população."""
     return sorted(populacao, key=lambda x: x.calcular_aptidao())[:quantidade]      
@@ -68,12 +91,12 @@ def gerar_populacao_aleatoria(
  
     Retorna
     -------
-    list[Individuo] — população gerada com 'quantidade' indivíduos únicos, 
-                      cada um começando obrigatoriamente com a cidade de partida.
-    
+    list[Individuo] — população gerada com 'quantidade' indivíduos únicos,
+                      cada um começando e terminando obrigatoriamente com a cidade de partida.
+
     Notas
     -----
-    - Cada indivíduo começará obrigatoriamente com a cidade de partida.
+    - Cada indivíduo começará e terminará obrigatoriamente com a cidade de partida (rota circular).
     - Indivíduos duplicados são evitados através da verificação de cromossomos únicos.
     - Se melhores_individuos for fornecido, eles serão incluídos na população.
     - Se não conseguir gerar indivíduos suficientes, lança uma exceção.
@@ -134,11 +157,12 @@ def gerar_populacao_aleatoria(
         
         # Validar e incluir melhores indivíduos
         for i, individuo in enumerate(melhores_individuos):
-            # Verifica se começa com a partida
-            if individuo.cromossomo[0].id != partida.id:
+            # Verifica se começa e termina com a partida (rota circular)
+            if individuo.cromossomo[0].id != partida.id or individuo.cromossomo[-1].id != partida.id:
                 raise ValueError(
-                    f"O indivíduo {i+1} dos melhores não começa com a cidade de partida ({partida.nome}). "
-                    f"Começa com: {individuo.cromossomo[0].nome}."
+                    f"O indivíduo {i+1} dos melhores não forma uma rota circular válida: "
+                    f"deve começar e terminar com '{partida.nome}'. "
+                    f"Rota atual: {individuo.cromossomo[0].nome} ... {individuo.cromossomo[-1].nome}."
                 )
             
             # Registra o cromossomo como visto
@@ -153,8 +177,7 @@ def gerar_populacao_aleatoria(
     
     # Loop de geração com validação de unicidade
     while len(populacao) < quantidade and tentativas < max_tentativas:
-        # Cria um novo indivíduo (começa com partida automaticamente)
-        individuo = Individuo(partida, cidades)
+        individuo = gerar_individuo_aleatorio(partida, cidades)
         
         # Cria uma tupla de IDs para comparação eficiente
         cromossomo_tupla = tuple(c.id for c in individuo.cromossomo)
@@ -203,15 +226,15 @@ def cruzamento_ox(parent1: Individuo, parent2: Individuo, partida: Cidade) -> In
     
     Notas
     -----
-    - O cromossomo filho sempre começa com a cidade de partida
-    - O cruzamento preserva a ordem relativa das cidades
-    - Nenhuma cidade é duplicada no cromossomo filho
-    
+    - O cromossomo filho sempre começa e termina com a cidade de partida (rota circular)
+    - O cruzamento preserva a ordem relativa das cidades internas
+    - Nenhuma cidade interna é duplicada no cromossomo filho
+
     Exemplo
     -------
-    >>> # parent1.cromossomo = [SP, Campinas, Santos, Sorocaba, ...]
-    >>> # parent2.cromossomo = [SP, Sorocaba, Santos, Campinas, ...]
-    >>> # filho pode ser: [SP, Campinas, Sorocaba, Santos, ...]
+    >>> # parent1.cromossomo = [SP, Campinas, Santos, Sorocaba, ..., SP]
+    >>> # parent2.cromossomo = [SP, Sorocaba, Santos, Campinas, ..., SP]
+    >>> # filho pode ser: [SP, Campinas, Sorocaba, Santos, ..., SP]
     """
     cromossomo_p1 = parent1.cromossomo
     cromossomo_p2 = parent2.cromossomo
@@ -220,13 +243,11 @@ def cruzamento_ox(parent1: Individuo, parent2: Individuo, partida: Cidade) -> In
     
     # Escolher dois índices aleatórios para o segmento de cruzamento
     # (excluindo a primeira posição que é a cidade de partida)
-    if length < 3:
-        # Se houver menos de 3 cidades, apenas retornar uma cópia do parent1
-        filho = Individuo(partida, [c for c in cromossomo_p1])
-        return filho
-    
-    start_index = random.randint(1, length - 2)
-    end_index = random.randint(start_index + 1, length)
+    if length < 4:
+        return Individuo(partida, list(cromossomo_p1))
+
+    start_index = random.randint(1, length - 3)
+    end_index = random.randint(start_index + 1, length - 1)
     
     # Copiar o segmento de parent1
     segmento = cromossomo_p1[start_index:end_index]
@@ -250,12 +271,11 @@ def cruzamento_ox(parent1: Individuo, parent2: Individuo, partida: Cidade) -> In
     
     # Adicionar cidades após o segmento (de parent2)
     filho_cromossomo.extend(cidades_restantes[quantidade_antes:])
-    
-    # Criar indivíduo filho com o novo cromossomo
-    filho = Individuo(partida, [partida] + [c for c in cromossomo_p1 if c.id != partida.id])
-    filho.cromossomo = filho_cromossomo
-    
-    return filho
+
+    # Fechar a rota com a cidade de partida
+    filho_cromossomo.append(partida)
+
+    return Individuo(partida, filho_cromossomo)
 
 
 # =============================================================================
@@ -284,14 +304,14 @@ def mutacao_simples(individuo: Individuo, probabilidade_mutacao: float) -> Indiv
     
     Notas
     -----
-    - A cidade de partida (primeira posição) nunca é movida
-    - A mutação garante que nenhuma cidade é perdida ou duplicada
+    - A cidade de partida (primeira e última posição) nunca é movida
+    - A mutação garante que nenhuma cidade interna é perdida ou duplicada
     - Se a probabilidade não for atingida, retorna uma cópia idêntica
-    
+
     Exemplo
     -------
-    >>> # cromossomo original: [SP, Campinas, Santos, Sorocaba]
-    >>> # Após mutação (swap): [SP, Santos, Campinas, Sorocaba]
+    >>> # cromossomo original: [SP, Campinas, Santos, Sorocaba, SP]
+    >>> # Após mutação (swap): [SP, Santos, Campinas, Sorocaba, SP]
     """
     individuo_mutado = copy.deepcopy(individuo)
     
@@ -299,13 +319,14 @@ def mutacao_simples(individuo: Individuo, probabilidade_mutacao: float) -> Indiv
     if random.random() >= probabilidade_mutacao:
         return individuo_mutado
     
-    # Garantir que há pelo menos 2 cidades para fazer swap
-    if len(individuo_mutado.cromossomo) < 3:
+    # Garantir que há pelo menos 2 cidades internas para fazer swap
+    # (cromossomo: [partida, ..., partida] — mínimo: [p, A, B, p] = len 4)
+    if len(individuo_mutado.cromossomo) < 4:
         return individuo_mutado
-    
-    # Selecionar duas posições adjacentes aleatoriamente (excluindo a primeira)
-    # Índices válidos: 1 até len-2 (para permitir swap com o próximo)
-    indice1 = random.randint(1, len(individuo_mutado.cromossomo) - 2)
+
+    # Selecionar duas posições adjacentes (excluindo a primeira e a última — ambas são partida)
+    # Índices válidos para indice1: 1 até len-3, pois indice2 = indice1+1 nunca pode ser len-1
+    indice1 = random.randint(1, len(individuo_mutado.cromossomo) - 3)
     indice2 = indice1 + 1
     
     # Fazer o swap
@@ -338,16 +359,16 @@ def mutacao_inversao(individuo: Individuo, probabilidade_mutacao: float) -> Indi
     
     Notas
     -----
-    - A cidade de partida (primeira posição) é sempre preservada
-    - Um segmento de 2 a N cidades pode ser invertido
+    - A cidade de partida (primeira e última posição) é sempre preservada
+    - Um segmento de 2 a N cidades internas pode ser invertido
     - A mutação por inversão explora o espaço de soluções de forma mais agressiva
       que a mutação simples, útil para escapar de mínimos locais
-    
+
     Exemplo
     -------
-    >>> # cromossomo original: [SP, Campinas, Santos, Sorocaba, Ribeirão Preto]
+    >>> # cromossomo original: [SP, Campinas, Santos, Sorocaba, Ribeirão Preto, SP]
     >>> # Após inversão do segmento [Santos, Sorocaba]:
-    >>> # resultado: [SP, Campinas, Sorocaba, Santos, Ribeirão Preto]
+    >>> # resultado: [SP, Campinas, Sorocaba, Santos, Ribeirão Preto, SP]
     """
     individuo_mutado = copy.deepcopy(individuo)
     
@@ -355,14 +376,15 @@ def mutacao_inversao(individuo: Individuo, probabilidade_mutacao: float) -> Indi
     if random.random() >= probabilidade_mutacao:
         return individuo_mutado
     
-    # Garantir que há pelo menos 3 cidades para inverter um segmento
-    if len(individuo_mutado.cromossomo) < 4:
+    # Garantir que há pelo menos 3 cidades internas para inverter um segmento
+    # (cromossomo: [partida, ..., partida] — mínimo: [p, A, B, C, p] = len 5)
+    if len(individuo_mutado.cromossomo) < 5:
         return individuo_mutado
-    
-    # Selecionar dois índices aleatórios para delimitar o segmento
-    # (excluindo a primeira posição que é a cidade de partida)
-    indice1 = random.randint(1, len(individuo_mutado.cromossomo) - 3)
-    indice2 = random.randint(indice1 + 2, len(individuo_mutado.cromossomo) - 1)
+
+    # Selecionar dois índices para delimitar o segmento
+    # (excluindo a primeira e a última posição — ambas são partida)
+    indice1 = random.randint(1, len(individuo_mutado.cromossomo) - 4)
+    indice2 = random.randint(indice1 + 2, len(individuo_mutado.cromossomo) - 2)
     
     # Inverter o segmento entre indice1 e indice2 (inclusivo)
     individuo_mutado.cromossomo[indice1:indice2 + 1] = \

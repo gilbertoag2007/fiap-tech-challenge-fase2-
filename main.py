@@ -1,7 +1,5 @@
-from Individuo import Individuo
 from cidade import Cidade
-#from utils import gerar_matriz_distancias, gerar_populacao_inicial
-from utils import *
+from algoritmos_geneticos import *
 
 # =============================================================================
 # Geração da lista de cidades
@@ -9,12 +7,16 @@ from utils import *
 def popular_cidades() -> list[Cidade]:
     """Cria e retorna uma lista de cidades pré-definidas."""
     cidades_cadastradas = [
-        Cidade(0, "São Paulo",           "SP", -23.5505, -46.6333),
-        Cidade(1, "Campinas",            "SP", -22.9056, -47.0608),
-        Cidade(2, "Ribeirão Preto",      "SP", -21.1775, -47.8103),
-        Cidade(3, "Santos",              "SP", -23.9618, -46.3322),
-        Cidade(4, "Sorocaba",            "SP", -23.5015, -47.4526),
-        Cidade(5, "São José dos Campos", "SP", -23.1794, -45.8869)
+        Cidade(0,  "São Paulo",           "SP", -23.5505, -46.6333),
+        Cidade(1,  "Campinas",            "SP", -22.9056, -47.0608),
+        Cidade(2,  "Ribeirão Preto",      "SP", -21.1775, -47.8103),
+        Cidade(3,  "Santos",              "SP", -23.9618, -46.3322),
+        Cidade(4,  "Sorocaba",            "SP", -23.5015, -47.4526),
+        Cidade(5,  "São José dos Campos", "SP", -23.1794, -45.8869),
+        Cidade(6,  "Bauru",               "SP", -22.3246, -49.0961),
+        Cidade(7,  "Presidente Prudente", "SP", -22.1256, -51.3889),
+        Cidade(8,  "São Carlos",          "SP", -22.0154, -47.8910),
+        Cidade(9,  "Piracicaba",          "SP", -22.7253, -47.6492),
     ]
     
     print("=== Cidades cadastradas ===")
@@ -23,31 +25,6 @@ def popular_cidades() -> list[Cidade]:
 
     return cidades_cadastradas
 
-
-
-
- 
-# =============================================================================
-# Criar cidades de teste
-# =============================================================================
- 
-def criar_cidades_teste() -> list[Cidade]:
-    """Cria uma lista de cidades para testes."""
-    return [
-        Cidade(0, "São Paulo",           "SP", -23.5505, -46.6333),
-        Cidade(1, "Campinas",            "SP", -22.9056, -47.0608),
-        Cidade(2, "Ribeirão Preto",      "SP", -21.1775, -47.8103),
-        Cidade(3, "Santos",              "SP", -23.9618, -46.3322),
-        Cidade(4, "Sorocaba",            "SP", -23.5015, -47.4526),
-        Cidade(5, "São José dos Campos", "SP", -23.1794, -45.8869)
-    ]
- 
-
-
-# =============================================================================
-#  TESTES DOS OPERADORES GENÉTICOS
-# =============================================================================
-    
 
 
 # =============================================================================
@@ -60,12 +37,12 @@ def teste_crossover():
     print("TESTE 1: CRUZAMENTO (ORDER CROSSOVER - OX)")
     print("="*80)
     
-    cidades = criar_cidades_teste()
+    cidades = popular_cidades()
     partida = cidades[0]  # São Paulo
     
     # Criar dois indivíduos progenitores
-    parent1 = Individuo(partida, cidades)
-    parent2 = Individuo(partida, cidades)
+    parent1 = gerar_individuo_aleatorio(partida, cidades)
+    parent2 = gerar_individuo_aleatorio(partida, cidades)
     
     print("\n📍 Parent 1 (Progenitor 1):")
     print(f"   Rota: {' → '.join(parent1.rota_nomes())}")
@@ -109,17 +86,17 @@ def teste_mutacao_simples():
     print("TESTE 2: MUTAÇÃO SIMPLES (SWAP DE DUAS CIDADES ADJACENTES)")
     print("="*80)
     
-    cidades = criar_cidades_teste()
+    cidades = popular_cidades()
     partida = cidades[0]
     
     # Criar um indivíduo
-    individuo = Individuo(partida, cidades)
+    individuo = gerar_individuo_aleatorio(partida, cidades)
     individuo.calcular_aptidao()
-    
+
     print("\n🧬 Indivíduo original:")
     print(f"   Rota: {' → '.join(individuo.rota_nomes())}")
     print(f"   Distância: {individuo.aptidao:.2f} km")
-    
+
     # Aplicar mutação com alta probabilidade para garantir que ocorra
     print("\n🔄 Aplicando mutação (probabilidade = 100%)...")
     individuo_mutado = mutacao_simples(individuo, probabilidade_mutacao=1.0)
@@ -150,17 +127,17 @@ def teste_mutacao_inversao():
     print("TESTE 3: MUTAÇÃO POR INVERSÃO DE SEGMENTO")
     print("="*80)
     
-    cidades = criar_cidades_teste()
+    cidades = popular_cidades()
     partida = cidades[0]
     
     # Criar um indivíduo
-    individuo = Individuo(partida, cidades)
+    individuo = gerar_individuo_aleatorio(partida, cidades)
     individuo.calcular_aptidao()
-    
+
     print("\n🧬 Indivíduo original:")
     print(f"   Rota: {' → '.join(individuo.rota_nomes())}")
     print(f"   Distância: {individuo.aptidao:.2f} km")
-    
+
     # Aplicar mutação com alta probabilidade
     print("\n🔄 Aplicando mutação por inversão (probabilidade = 100%)...")
     individuo_mutado = mutacao_inversao(individuo, probabilidade_mutacao=1.0)
@@ -191,7 +168,7 @@ def teste_probabilidades():
     print("TESTE 4: PROBABILIDADES REALISTAS")
     print("="*80)
     
-    cidades = criar_cidades_teste()
+    cidades = popular_cidades()
     partida = cidades[0]
     
     print("\n📊 Executando 100 mutações com probabilidade = 10%:")
@@ -200,7 +177,7 @@ def teste_probabilidades():
     contador_mutacoes = 0
     
     for i in range(100):
-        individuo = Individuo(partida, cidades)
+        individuo = gerar_individuo_aleatorio(partida, cidades)
         individuo_mutado = mutacao_simples(individuo, probabilidade_mutacao=0.1)
         
         # Verificar se houve mutação
@@ -226,9 +203,9 @@ def teste_integracao_loop():
     print("TESTE 5: INTEGRAÇÃO COM LOOP DE ÉPOCAS")
     print("="*80)
     
-    from utils import gerar_populacao_aleatoria, seleciona_melhores_individuos
+    from algoritmos_geneticos import gerar_populacao_aleatoria, seleciona_melhores_individuos
     
-    cidades = criar_cidades_teste()
+    cidades = popular_cidades()
     partida = cidades[0]
     
     print("\n🏁 Simulando 5 épocas com crossover e mutação:\n")
@@ -316,15 +293,14 @@ if __name__ == "__main__":
     print("\n=== CRIANDO INDIVIDUOS ===")
 
     tamanho_populacao=10
-
     # --- Cria 10 indivíduos com rota aleatória ---
     populacao_inicial = gerar_populacao_aleatoria(tamanho_populacao, partida, cidades)
     
    # melhores_individuos = seleciona_melhores_individuos(populacao_inicial, 5)
     
     numero_epocas=5
-    quantidade_elite=5
-    tamanho_populacao=10
+    quantidade_elite=3
+    
 
     melhor_individuo_global = None
 

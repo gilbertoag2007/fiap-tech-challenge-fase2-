@@ -1,5 +1,3 @@
-import random
-from typing import Optional
 from cidade import Cidade
 
 
@@ -7,38 +5,23 @@ class Individuo:
     """
     Representa um indivíduo (solução candidata) para o problema do Caixeiro
     Viajante (TSP) resolvido via Algoritmos Genéticos.
-    Parâmetros:
-    -----------
+
+    Parâmetros
+    ----------
     partida : Cidade
-        Cidade de partida (pode ser usada para garantir que a rota comece por ela).
-    cidades : list[Cidade] 
-        Lista completa de cidades a serem visitadas (incluindo a cidade de partida).   
+        Cidade de partida — deve ser o primeiro e o último elemento do cromossomo.
+    cromossomo : list[Cidade]
+        Rota completa já construída, incluindo a cidade de partida no início e no fim.
 
     Atributos
     ---------
-
     cromossomo : list[Cidade]
-        Permutação das cidades definindo uma rota e ordem de visita.
-       
+        Sequência de cidades que define a rota circular.
     """
 
-    def __init__(self, partida: Cidade, cidades: list[Cidade]) -> None:
-        self.cromossomo: list[Cidade] = self.gerar_cromossomo_aleatorio(partida, cidades)
+    def __init__(self, partida: Cidade, cromossomo: list[Cidade]) -> None:
         self.partida = partida
-    # ------------------------------------------------------------------
-    # Inicialização
-    # ------------------------------------------------------------------
-
-    def gerar_cromossomo_aleatorio(self, partida: Cidade, cidades: list[Cidade]) -> list[Cidade]:
-        """Cria uma permutação aleatória das cidades, com a cidade de partida sempre em primeiro lugar."""
-        # Remove a cidade de partida da lista de cidades
-        outras_cidades = [cidade for cidade in cidades if cidade.id != partida.id]
-    
-        # Embaralha as outras cidades aleatoriamente
-        random.shuffle(outras_cidades)
-    
-        # Retorna a rota com a cidade de partida no início
-        return [partida] + outras_cidades
+        self.cromossomo: list[Cidade] = cromossomo
 
 
     def calcular_aptidao(self) -> float:
@@ -53,9 +36,9 @@ class Individuo:
         distancia_total = 0.0
         n = len(self.cromossomo)
 
-        for i in range(n):
+        for i in range(n - 1):
             origem  = self.cromossomo[i]
-            destino = self.cromossomo[(i + 1) % n]  # % n fecha o ciclo
+            destino = self.cromossomo[i + 1]
             distancia_total += origem.distancia_para(destino)
 
         self.aptidao = distancia_total
@@ -69,12 +52,15 @@ class Individuo:
     def is_valido(self) -> bool:
         """
         Verifica se o cromossomo é uma permutação válida:
-        - Retorna True ou False indicando se existem cidades repetidas no cromossomo.
+        - Primeira e última cidade devem ser a cidade de partida.
+        - As cidades internas não podem ter duplicatas nem conter a partida.
+        - Retorna True se válido, False caso contrário.
         """
-        ids_cidades = {c.id for c in self.cromossomo}
-        tem_duplicata = len(ids_cidades) != len(set(ids_cidades))
-       
-        return tem_duplicata
+        ids = [c.id for c in self.cromossomo]
+        if not ids or ids[0] != self.partida.id or ids[-1] != self.partida.id:
+            return False
+        inner_ids = ids[1:-1]
+        return len(inner_ids) == len(set(inner_ids)) and self.partida.id not in set(inner_ids)
 
     # ------------------------------------------------------------------
     # Utilitários
@@ -82,9 +68,7 @@ class Individuo:
 
     def copiar(self) -> "Individuo":
         """Retorna uma cópia independente deste indivíduo."""
-        copia = Individuo(self.partida, self.cidades)
-        
-        return copia
+        return Individuo(self.partida, list(self.cromossomo))
 
     def rota_nomes(self) -> list[str]:
         """Retorna a sequência de nomes das cidades na ordem da rota."""
