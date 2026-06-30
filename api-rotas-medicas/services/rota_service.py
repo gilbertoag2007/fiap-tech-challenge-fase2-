@@ -1,7 +1,7 @@
 import random
 from typing import Any
 
-from models.Individuo import Individuo
+from models.individuo import Individuo
 from services.cidade_service import cidade_service
 from services.llm_service import LLMService
 from services import algoritmos_geneticos as ag
@@ -48,6 +48,10 @@ class RotaService:
         dict — GeoJSON FeatureCollection com a rota otimizada.
         """
         pares = LLMService().interpretar_mensagem(mensagem)
+
+        if not pares:
+            raise ValueError("Nenhuma cidade encontrada com os parâmentros informados.")
+
         lista_cidades = cidade_service.montar_cidades_com_produtos(pares)
 
         if len(lista_cidades) < 2:

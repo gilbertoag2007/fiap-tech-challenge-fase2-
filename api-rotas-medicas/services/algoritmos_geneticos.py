@@ -8,7 +8,7 @@ import random
 from math import factorial
 from typing import Optional
 
-from models.Individuo import Individuo
+from models.individuo import Individuo
 from models.cidade import Cidade
 
 

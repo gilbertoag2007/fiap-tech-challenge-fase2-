@@ -3,8 +3,9 @@ __pycache__/
 .venv/
 .env
 .vscode/
-*.html
-*.png
 docs/
 poc/
 codigo_base_professor/
+node_modules/
+dist/
+frontend-rotas-medicas/TEMPLATE1.png

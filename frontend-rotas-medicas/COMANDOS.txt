@@ -1,0 +1,4 @@
+cd frontend-rotas-medicas
+npm config set strict-ssl false
+npm install
+npm run dev

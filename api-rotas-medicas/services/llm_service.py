@@ -1,4 +1,5 @@
 import json
+import re
 from typing import Any
 from openai import OpenAI
 from config.settings import Settings
@@ -27,10 +28,24 @@ class LLMService:
         a função listar_cidades_por_regiao.
     - Quando a mensagem citar um estado inteiro, use listar_cidades_por_uf.
     - Quando citar nomes específicos de municípios, use pesquisar_cidade_por_nome para cada um.
+    - Para confirmar ou validar o código IBGE de um município já identificado, use
+        buscar_cidade_por_cod_ibge.
     - Caso não encontre o código IBGE pelas funções locais, utilize seu conhecimento para inferir.
 
     Para identificar os produtos, utilize a função pesquisar_produto_por_nome para cada produto
-    mencionado na mensagem.
+    mencionado na mensagem. Se a busca retornar lista vazia, tente novamente com um termo mais
+    curto ou com apenas a palavra principal do produto (ex.: se "vacinas da Covid 19" não
+    retornar resultado, tente "vacina covid" ou somente "covid").
+
+    IDENTIFICAÇÃO DA CIDADE DE PARTIDA:
+    - Analise a mensagem para identificar se há uma cidade de partida/origem explicitamente
+      citada (expressões como "saindo de", "partindo de", "a partir de", "origem em",
+      "hub em", "base em", "depot em", "ponto de partida", "cidade de partida é",
+      "cidade de partida:").
+    - Se uma cidade de partida for identificada, ela DEVE ser o PRIMEIRO elemento da lista JSON.
+      Se essa cidade não receber nenhum produto específico, associe a ela o mesmo produto_id
+      do produto principal mencionado na mensagem.
+    - Se nenhuma cidade de partida for explicitamente mencionada, não altere a ordem dos pares.
 
     Ao finalizar todas as pesquisas, responda EXCLUSIVAMENTE com um JSON puro, sem texto adicional
     e sem markdown, no seguinte formato:
@@ -128,8 +143,91 @@ class LLMService:
                 },
             },
         },
+        {
+            "type": "function",
+            "function": {
+                "name": "buscar_cidade_por_cod_ibge",
+                "description": (
+                    "Busca um município brasileiro pelo código IBGE no banco de dados local. "
+                    "Use para confirmar ou validar o código IBGE de uma cidade já identificada."
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "cod_ibge": {
+                            "type": "integer",
+                            "description": "Código IBGE do município (ex.: 3304557 para Rio de Janeiro).",
+                        }
+                    },
+                    "required": ["cod_ibge"],
+                },
+            },
+        },
     ]
 
+
+    # ---------------------------------------------------------------------------
+    # Reordenação da cidade de partida
+    # ---------------------------------------------------------------------------
+
+    _PADROES_PARTIDA: list[str] = [
+        r"cidade de partida[^é\w]*(?:é\s+)?(.+?)(?:\.|,|$)",
+        r"ponto de partida[^é\w]*(?:é\s+)?(.+?)(?:\.|,|$)",
+        r"saindo de\s+(.+?)(?:\.|,|$)",
+        r"partindo de\s+(.+?)(?:\.|,|$)",
+        r"a partir de\s+(.+?)(?:\.|,|$)",
+        r"origem em\s+(.+?)(?:\.|,|$)",
+        r"hub em\s+(.+?)(?:\.|,|$)",
+        r"base em\s+(.+?)(?:\.|,|$)",
+        r"depot em\s+(.+?)(?:\.|,|$)",
+    ]
+
+    def _reordenar_partida(
+        self, pares: list[dict[str, int]], mensagem: str
+    ) -> list[dict[str, int]]:
+        """
+        Garante que a cidade de partida mencionada na mensagem seja o primeiro elemento.
+
+        Extrai o nome da cidade via expressões regulares, localiza seu cod_ibge no banco
+        local e move o par correspondente para o índice 0. Se o par não estiver na lista
+        (a LLM pode não tê-lo incluído), insere um com o produto_id do primeiro par.
+
+        Parâmetros
+        ----------
+        pares : list[dict[str, int]] — lista de pares retornada pela LLM.
+        mensagem : str — mensagem original do usuário.
+
+        Retorna
+        -------
+        list[dict[str, int]] — lista reordenada (ou original se partida não identificada).
+        """
+        for padrao in self._PADROES_PARTIDA:
+            match = re.search(padrao, mensagem, re.IGNORECASE)
+            if not match:
+                continue
+
+            nome_cidade = match.group(1).strip().rstrip(".")
+            cidades = cidade_service.pesquisar_por_nome(nome_cidade)
+            if not cidades:
+                continue
+
+            cod_ibge_partida = cidades[0].cod_ibge
+            idx = next(
+                (i for i, p in enumerate(pares) if p.get("cod_ibge") == cod_ibge_partida),
+                None,
+            )
+
+            if idx is None:
+                produto_id_principal = pares[0]["produto_id"] if pares else 1
+                pares.insert(0, {"cod_ibge": cod_ibge_partida, "produto_id": produto_id_principal})
+                print(f"[LLMService] Cidade de partida '{cidades[0].nome}' inserida na posição 0.")
+            elif idx != 0:
+                pares.insert(0, pares.pop(idx))
+                print(f"[LLMService] Cidade de partida '{cidades[0].nome}' movida para posição 0.")
+
+            return pares
+
+        return pares
 
     # ---------------------------------------------------------------------------
     # Execução local das ferramentas
@@ -158,6 +256,11 @@ class LLMService:
                 {"id": p.id, "nome": p.nome, "prioridade": p.prioridade}
                 for p in produto_service.pesquisar_por_nome(args["termo"])
             ]
+        if nome == "buscar_cidade_por_cod_ibge":
+            cidade = cidade_service.buscar_por_cod_ibge(int(args["cod_ibge"]))
+            if cidade is None:
+                return []
+            return [{"cod_ibge": cidade.cod_ibge, "nome": cidade.nome, "uf": cidade.uf}]
         return []
 
 
@@ -260,13 +363,14 @@ class LLMService:
             conteudo = choice.message.content or "[]"
             resultado = json.loads(conteudo)
             if isinstance(resultado, list):
-                return [
+                pares = [
                     item
                     for item in resultado
                     if isinstance(item, dict)
                     and "cod_ibge" in item
                     and "produto_id" in item
                 ]
+                return self._reordenar_partida(pares, mensagem)
         except json.JSONDecodeError:
             pass
 

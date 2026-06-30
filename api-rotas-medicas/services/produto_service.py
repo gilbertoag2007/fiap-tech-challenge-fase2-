@@ -59,20 +59,31 @@ class ProdutoService:
         Retorna produtos cujo nome corresponda ao termo de forma parcial e bidirecional
         (insensível a maiúsculas).
 
-        Busca bidirecional: o nome do produto está contido no termo OU o termo está
-        contido no nome do produto. Isso resolve buscas onde o texto enviado é mais
-        longo que o nome cadastrado (ex.: "vacina da covid 19" encontra "Vacina Covid 19")
-        e também buscas com fragmentos (ex.: "seringa" encontra "Seringa Descartável").
+        Estratégia em duas camadas:
+        1. Substring bidirecional exata (ex.: "seringa" encontra "Seringa Descartável").
+        2. Prefixo por palavras: para cada palavra significativa (> 2 chars) do termo,
+           verifica se ela é prefixo de alguma palavra do nome ou vice-versa. Isso resolve
+           flexões como "vacinas" encontrando "Vacina da Covid" (pt="vacinas", pn="vacina"
+           → "vacinas".startswith("vacina") == True).
 
         Parâmetros
         ----------
         termo : str — nome ou descrição do produto em linguagem natural.
         """
         busca = termo.strip().lower()
-        return [
-            p for p in self._produtos
-            if busca in p.nome.lower() or p.nome.lower() in busca
-        ]
+        palavras_busca = [w for w in busca.split() if len(w) > 2]
+
+        def _corresponde(nome_lower: str) -> bool:
+            if busca in nome_lower or nome_lower in busca:
+                return True
+            palavras_nome = [w for w in nome_lower.split() if len(w) > 2]
+            return any(
+                pt.startswith(pn) or pn.startswith(pt)
+                for pt in palavras_busca
+                for pn in palavras_nome
+            )
+
+        return [p for p in self._produtos if _corresponde(p.nome.lower())]
 
 
 # Instância singleton — importe e use diretamente nos routers e services.
